@@ -19,7 +19,7 @@
   "contributes": {
     "commands": [
       {
-        "command": "logicapp-scaffolder.createProject",
+        "command": "logicapp-scaffolder.simple",
         "title": "Create Logic App Standard Project"
       }
     ]

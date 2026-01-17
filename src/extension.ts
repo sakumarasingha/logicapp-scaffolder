@@ -7,13 +7,26 @@ export function activate(context: vscode.ExtensionContext) {
         // Prompt for resource group name
         const resourceGroupName = await vscode.window.showInputBox({
             prompt: 'Enter Resource Group Name',
-            placeHolder: 'rg-logicapp-prod',
+            placeHolder: 'rg-dilmix-ae-prd',
             validateInput: (value) => {
                 return value && value.trim() ? null : 'Resource group name is required';
             }
         });
 
         if (!resourceGroupName) {
+            return;
+        }
+
+        // Prompt for DevOps Service Connection Name
+        const devOpsServiceConnectionName = await vscode.window.showInputBox({
+            prompt: 'Enter DevOps Service Connection Name',
+            placeHolder: 'PROD DEVOPS DEPLOYMENT',
+            validateInput: (value) => {
+                return value && value.trim() ? null : 'DevOps Service Connection  name is required';
+            }
+        });
+
+        if (!devOpsServiceConnectionName) {
             return;
         }
 
@@ -37,7 +50,7 @@ export function activate(context: vscode.ExtensionContext) {
             createBicepFile(rootPath, resourceGroupName);
 
             // Create Azure DevOps Pipeline YAML
-            createPipelineYaml(rootPath, resourceGroupName);
+            createPipelineYaml(rootPath, resourceGroupName, devOpsServiceConnectionName);
 
             // Create sample Logic App workflow
             createSampleLogicApp(rootPath);
@@ -183,7 +196,7 @@ output storageAccountName string = storageAccount.name
     fs.writeFileSync(bicepPath, bicepContent);
 }
 
-function createPipelineYaml(rootPath: string, resourceGroupName: string) {
+function createPipelineYaml(rootPath: string, resourceGroupName: string, serviceConnectionName: string) {
     const yamlContent = `trigger:
   branches:
     include:
@@ -194,7 +207,7 @@ pool:
   vmImage: 'ubuntu-latest'
 
 variables:
-  azureSubscription: 'YOUR_SERVICE_CONNECTION_NAME'
+  azureSubscription: '${serviceConnectionName}'
   resourceGroupName: '${resourceGroupName}'
   location: 'eastus'
   bicepFile: 'src/deploy/main.bicep'

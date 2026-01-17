@@ -1,0 +1,43 @@
+{
+  "name": "logicapp-scaffolder",
+  "displayName": "Logic App Standard Scaffolder",
+  "description": "Create Logic App Standard projects with Bicep and Azure DevOps Pipeline",
+  "version": "1.0.0",
+  "publisher": "Dilmix",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sakumarasingha/logicapp-scaffolder.git"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "logicapp-scaffolder.createProject",
+        "title": "Create Logic App Standard Project"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src --ext ts"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@types/node": "20.x",
+    "@types/mocha": "^10.0.6",
+    "@vscode/test-electron": "^2.3.8",
+    "eslint": "^8.57.0",
+    "typescript": "^5.3.3",
+    "typescript-eslint": "^8.0.0",
+    "mocha": "^10.2.0"
+  }
+}

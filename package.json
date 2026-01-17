@@ -4,6 +4,7 @@
   "description": "Create Logic App Standard projects with Bicep and Azure DevOps Pipeline",
   "version": "1.0.0",
   "publisher": "Dilmix",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/sakumarasingha/logicapp-scaffolder.git"

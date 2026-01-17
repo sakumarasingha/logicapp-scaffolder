@@ -3,79 +3,99 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 export function activate(context: vscode.ExtensionContext) {
-    let disposable = vscode.commands.registerCommand('logicapp-scaffolder.createProject', async () => {
-        // Prompt for resource group name
-        const resourceGroupName = await vscode.window.showInputBox({
-            prompt: 'Enter Resource Group Name',
-            placeHolder: 'rg-dilmix-ae-prd',
-            validateInput: (value) => {
-                return value && value.trim() ? null : 'Resource group name is required';
-            }
-        });
-
-        if (!resourceGroupName) {
-            return;
-        }
-
-        // Prompt for DevOps Service Connection Name
-        const devOpsServiceConnectionName = await vscode.window.showInputBox({
-            prompt: 'Enter DevOps Service Connection Name',
-            placeHolder: 'PROD DEVOPS DEPLOYMENT',
-            validateInput: (value) => {
-                return value && value.trim() ? null : 'DevOps Service Connection  name is required';
-            }
-        });
-
-        if (!devOpsServiceConnectionName) {
-            return;
-        }
-
-        // Get workspace folder
-        const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-        if (!workspaceFolder) {
-            vscode.window.showErrorMessage('Please open a workspace folder first');
-            return;
-        }
-
-        const rootPath = workspaceFolder.uri.fsPath;
-
-        try {
-            // Create folder structure
-            createFolder(rootPath, 'src/deploy');
-            createFolder(rootPath, 'workflows');
-            createFolder(rootPath, 'src/logicapps');
-            createFolder(rootPath, 'src/functionapps');
-
-            // Create Bicep file
-            createBicepFile(rootPath, resourceGroupName);
-
-            // Create Azure DevOps Pipeline YAML
-            createPipelineYaml(rootPath, resourceGroupName, devOpsServiceConnectionName);
-
-            // Create sample Logic App workflow
-            createSampleLogicApp(rootPath);
-
-            // Create sample Function App
-            createSampleFunctionApp(rootPath);
-
-            vscode.window.showInformationMessage('Logic App Standard project created successfully!');
-        } catch (error) {
-            vscode.window.showErrorMessage(`Error creating project: ${error}`);
-        }
+  let disposable = vscode.commands.registerCommand('logicapp-scaffolder.createProject', async () => {
+    // Prompt for resource group name
+    const resourceGroupName = await vscode.window.showInputBox({
+      prompt: 'Enter Resource Group Name',
+      placeHolder: 'rg-emd-ae-prd',
+      validateInput: (value) => {
+        return value && value.trim() ? null : 'Resource group name is required';
+      }
     });
 
-    context.subscriptions.push(disposable);
+    if (!resourceGroupName) {
+      return;
+    }
+
+    // Prompt for Key Vault name
+    const kvName = await vscode.window.showInputBox({
+      prompt: 'Enter Key Vault Name',
+      placeHolder: 'kv-emd-ae-prd',
+      validateInput: (value) => {
+        return value && value.trim() ? null : 'Key Vault name is required';
+      }
+    });
+
+    if (!kvName) {
+      return;
+    }
+
+    // Prompt for DevOps Service Connection Name
+    const devOpsServiceConnectionName = await vscode.window.showInputBox({
+      prompt: 'Enter DevOps Service Connection Name',
+      placeHolder: 'PROD DEVOPS DEPLOYMENT',
+      validateInput: (value) => {
+        return value && value.trim() ? null : 'DevOps Service Connection  name is required';
+      }
+    });
+
+    if (!devOpsServiceConnectionName) {
+      return;
+    }
+
+    // Get workspace folder
+    const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+    if (!workspaceFolder) {
+      vscode.window.showErrorMessage('Please open a workspace folder first');
+      return;
+    }
+
+    const rootPath = workspaceFolder.uri.fsPath;
+
+    try {
+      // Create folder structure
+      createFolder(rootPath, 'src/deploy');
+      createFolder(rootPath, 'src/deploy/artifacts');
+      createFolder(rootPath, 'src/deploy/env');
+      createFolder(rootPath, 'workflows');
+      createFolder(rootPath, 'src/logicapps');
+      createFolder(rootPath, 'src/functionapps');
+
+      //Create Bicep Parameter Files
+      fs.writeFileSync(path.join(rootPath, 'src/deploy/env/main.dev.bicepparam'), '{}');
+      fs.writeFileSync(path.join(rootPath, 'src/deploy/env/main.sit.bicepparam'), '{}');
+      fs.writeFileSync(path.join(rootPath, 'src/deploy/env/main.uat.bicepparam'), '{}');
+      fs.writeFileSync(path.join(rootPath, 'src/deploy/env/main.prd.bicepparam'), '{}');
+      // Create Bicep file
+      createBicepFile(rootPath, resourceGroupName);
+
+      // Create Azure DevOps Pipeline YAML
+      createPipelineYaml(rootPath, resourceGroupName, devOpsServiceConnectionName, 'australiaeast');
+
+      // Create sample Logic App workflow
+      createSampleLogicApp(rootPath);
+
+      // Create sample Function App
+      createSampleFunctionApp(rootPath);
+
+      vscode.window.showInformationMessage('Logic App Standard project created successfully!');
+    } catch (error) {
+      vscode.window.showErrorMessage(`Error creating project: ${error}`);
+    }
+  });
+
+  context.subscriptions.push(disposable);
 }
 
 function createFolder(rootPath: string, folderPath: string) {
-    const fullPath = path.join(rootPath, folderPath);
-    if (!fs.existsSync(fullPath)) {
-        fs.mkdirSync(fullPath, { recursive: true });
-    }
+  const fullPath = path.join(rootPath, folderPath);
+  if (!fs.existsSync(fullPath)) {
+    fs.mkdirSync(fullPath, { recursive: true });
+  }
 }
 
 function createBicepFile(rootPath: string, resourceGroupName: string) {
-    const bicepContent = `// Logic App Standard Infrastructure
+  const bicepContent = `// Logic App Standard Infrastructure
 param location string = resourceGroup().location
 param logicAppName string = 'logic-app-\${uniqueString(resourceGroup().id)}'
 param appServicePlanName string = 'asp-\${logicAppName}'
@@ -192,12 +212,12 @@ output functionAppName string = functionApp.name
 output storageAccountName string = storageAccount.name
 `;
 
-    const bicepPath = path.join(rootPath, 'src/deploy/main.bicep');
-    fs.writeFileSync(bicepPath, bicepContent);
+  const bicepPath = path.join(rootPath, 'src/deploy/main.bicep');
+  fs.writeFileSync(bicepPath, bicepContent);
 }
 
-function createPipelineYaml(rootPath: string, resourceGroupName: string, serviceConnectionName: string) {
-    const yamlContent = `trigger:
+function createPipelineYaml(rootPath: string, resourceGroupName: string, serviceConnectionName: string, location: string) {
+  const yamlContent = `trigger:
   branches:
     include:
       - main
@@ -209,7 +229,7 @@ pool:
 variables:
   azureSubscription: '${serviceConnectionName}'
   resourceGroupName: '${resourceGroupName}'
-  location: 'eastus'
+  location: '${location}'
   bicepFile: 'src/deploy/main.bicep'
 
 stages:
@@ -315,12 +335,12 @@ stages:
                     deploymentMethod: 'zipDeploy'
 `;
 
-    const yamlPath = path.join(rootPath, 'workflows/azure-pipeline.yml');
-    fs.writeFileSync(yamlPath, yamlContent);
+  const yamlPath = path.join(rootPath, 'workflows/azure-pipeline.yml');
+  fs.writeFileSync(yamlPath, yamlContent);
 }
 
 function createSampleLogicApp(rootPath: string) {
-    const workflowContent = `{
+  const workflowContent = `{
   "definition": {
     "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
     "actions": {
@@ -351,7 +371,7 @@ function createSampleLogicApp(rootPath: string) {
   "kind": "Stateful"
 }`;
 
-    const hostContent = `{
+  const hostContent = `{
   "version": "2.0",
   "extensionBundle": {
     "id": "Microsoft.Azure.Functions.ExtensionBundle.Workflows",
@@ -359,13 +379,16 @@ function createSampleLogicApp(rootPath: string) {
   }
 }`;
 
-    createFolder(rootPath, 'src/logicapps/SampleWorkflow');
-    fs.writeFileSync(path.join(rootPath, 'src/logicapps/SampleWorkflow/workflow.json'), workflowContent);
-    fs.writeFileSync(path.join(rootPath, 'src/logicapps/host.json'), hostContent);
+  createFolder(rootPath, 'src/logicapps/SampleWorkflow');
+  createFolder(rootPath, 'src/logicapps/SampleWorkflow/Artifacts');
+  fs.writeFileSync(path.join(rootPath, 'src/logicapps/SampleWorkflow/workflow.json'), workflowContent);
+  fs.writeFileSync(path.join(rootPath, 'src/logicapps/host.json'), hostContent);
+  fs.writeFileSync(path.join(rootPath, 'src/logicapps/connections.json'), '{}');
+  fs.writeFileSync(path.join(rootPath, 'src/logicapps/parameters.json'), '{}');
 }
 
 function createSampleFunctionApp(rootPath: string) {
-    const functionContent = `const { app } = require('@azure/functions');
+  const functionContent = `const { app } = require('@azure/functions');
 
 app.http('HttpTrigger', {
     methods: ['GET', 'POST'],
@@ -382,7 +405,7 @@ app.http('HttpTrigger', {
     }
 });`;
 
-    const hostContent = `{
+  const hostContent = `{
   "version": "2.0",
   "logging": {
     "applicationInsights": {
@@ -398,7 +421,7 @@ app.http('HttpTrigger', {
   }
 }`;
 
-    const packageJson = `{
+  const packageJson = `{
   "name": "functionapp",
   "version": "1.0.0",
   "description": "Azure Function App",
@@ -410,10 +433,10 @@ app.http('HttpTrigger', {
   }
 }`;
 
-    createFolder(rootPath, 'src/functionapps/HttpTrigger');
-    fs.writeFileSync(path.join(rootPath, 'src/functionapps/HttpTrigger/index.js'), functionContent);
-    fs.writeFileSync(path.join(rootPath, 'src/functionapps/host.json'), hostContent);
-    fs.writeFileSync(path.join(rootPath, 'src/functionapps/package.json'), packageJson);
+  createFolder(rootPath, 'src/functionapps/HttpTrigger');
+  fs.writeFileSync(path.join(rootPath, 'src/functionapps/HttpTrigger/index.js'), functionContent);
+  fs.writeFileSync(path.join(rootPath, 'src/functionapps/host.json'), hostContent);
+  fs.writeFileSync(path.join(rootPath, 'src/functionapps/package.json'), packageJson);
 }
 
-export function deactivate() {}
+export function deactivate() { }

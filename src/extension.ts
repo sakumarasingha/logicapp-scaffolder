@@ -105,9 +105,21 @@ function createFolder(rootPath: string, folderPath: string) {
   }
 }
 
-function createBicepParameterFile(rootPath: string, orgName: string, projectName: string) {
-  const bicepParamContent = `// Logic App Standard Infrastructure
-
+function createBicepParameterFile(rootPath: string, resourceGroupName: string, orgName: string, projectName: string) {
+  const bicepParamContent = `using '../main.bicep'
+param locationFull = 'australiaeast'
+param environment = 'dev'
+param entity = '${orgName}'
+param projectName = '${projectName}'
+param rgName = '${resourceGroupName}'
+param tagList = {
+  'Created By': 'EmdFlow'
+  Owner : '${orgName}'
+  Department : 'Integration'
+  Environment : 'DEV'
+  Vendor : 'Microsoft'
+  Version : '1.0.0'
+}
 `;
 
   const bicepPath = path.join(rootPath, 'src/deploy/env/main.dev.bicepparam');
@@ -125,6 +137,9 @@ param environment string
 @description('Entity Name')
 param entity string
 
+@description('Project Name')
+param projectName string
+
 @description('Tag list and values')
 param tagList object
 
@@ -134,9 +149,6 @@ param tagList object
   'australiasoutheast'
 ])
 param locationFull string
-
-@description('Resource Group for Core Services')
-param rgCoreService string
 
 @description('Resource Group Name')
 param rgName string
@@ -151,7 +163,7 @@ var region = {
   southeastasia: 'SEA'
 }
 
-var logicAppName = toLower('logic-\${projectName}-\${projectName}-\${region[locationFull]}')
+var logicAppName = toLower('logic-\${projectName}-\${environment}-\${region[locationFull]}')
 var appServicePlanName = toLower('asp-\${entity}-\${environment}-\${region[locationFull]}-001}')
 var storageAccountName = toLower('st\${orgName}\${environment}\${region[locationFull]}001')
 var keyvaultName = toLower('kv-\${entity}-\${environment}-\${region[locationFull]}-001')

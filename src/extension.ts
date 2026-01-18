@@ -17,16 +17,29 @@ export function activate(context: vscode.ExtensionContext) {
       return;
     }
 
-    // Prompt for Key Vault name
-    const kvName = await vscode.window.showInputBox({
-      prompt: 'Enter Key Vault Name',
-      placeHolder: 'kv-emd-ae-prd',
+    // Prompt Project name
+    const projectName = await vscode.window.showInputBox({
+      prompt: 'Enter Project Name',
+      placeHolder: 'order-processing',
       validateInput: (value) => {
-        return value && value.trim() ? null : 'Key Vault name is required';
+        return value && value.trim() ? null : 'Project name is required';
       }
     });
 
-    if (!kvName) {
+    if (!projectName) {
+      return;
+    }
+
+    // Prompt Project name
+    const orgName = await vscode.window.showInputBox({
+      prompt: 'Enter Org Name (3 Letter)',
+      placeHolder: 'emd',
+      validateInput: (value) => {
+        return value && value.trim() ? null : 'Organization name is required';
+      }
+    });
+
+    if (!orgName) {
       return;
     }
 
@@ -60,6 +73,7 @@ export function activate(context: vscode.ExtensionContext) {
       createFolder(rootPath, 'workflows');
       createFolder(rootPath, 'src/logicapps');
       createFolder(rootPath, 'src/functionapps');
+      createFolder(rootPath, 'src/bicep/modules');
 
       //Create Bicep Parameter Files
       fs.writeFileSync(path.join(rootPath, 'src/deploy/env/main.dev.bicepparam'), '{}');
@@ -67,7 +81,7 @@ export function activate(context: vscode.ExtensionContext) {
       fs.writeFileSync(path.join(rootPath, 'src/deploy/env/main.uat.bicepparam'), '{}');
       fs.writeFileSync(path.join(rootPath, 'src/deploy/env/main.prd.bicepparam'), '{}');
       // Create Bicep file
-      createBicepFile(rootPath, resourceGroupName);
+      createBicepFile(rootPath, orgName, projectName);
 
       // Create Azure DevOps Pipeline YAML
       createPipelineYaml(rootPath, resourceGroupName, devOpsServiceConnectionName, 'australiaeast');
@@ -94,13 +108,15 @@ function createFolder(rootPath: string, folderPath: string) {
   }
 }
 
-function createBicepFile(rootPath: string, resourceGroupName: string) {
+function createBicepFile(rootPath: string, orgName: string, projectName: string) {
   const bicepContent = `// Logic App Standard Infrastructure
 param location string = resourceGroup().location
-param logicAppName string = 'logic-app-\${uniqueString(resourceGroup().id)}'
-param appServicePlanName string = 'asp-\${logicAppName}'
-param storageAccountName string = 'st\${uniqueString(resourceGroup().id)}'
-param functionAppName string = 'func-\${uniqueString(resourceGroup().id)}'
+var logicAppName = toLower('logic-${projectName}-prd-ae}')
+var appServicePlanName = toLower('asp-${orgName}-prd-ae-001}')
+var storageAccountName = toLower('st\${orgName}prdae001')
+var keyvaultName = toLower('kv-${orgName}-prd-ae-001')
+var omsWorkspaceName = toLower('oms-${orgName}-prd-ae-001')
+var actionGroupName = toLower('ag-${orgName}-prd-ae-001')
 
 // Storage Account for Logic App
 resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' = {
@@ -208,12 +224,14 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
 }
 
 output logicAppName string = logicApp.name
-output functionAppName string = functionApp.name
 output storageAccountName string = storageAccount.name
 `;
 
   const bicepPath = path.join(rootPath, 'src/deploy/main.bicep');
   fs.writeFileSync(bicepPath, bicepContent);
+
+  fs.writeFileSync(path.join(rootPath, 'src/deploy/integration.bicep'), '{}');
+  fs.writeFileSync(path.join(rootPath, 'src/deploy/monitoring.bicep'), '{}');
 }
 
 function createPipelineYaml(rootPath: string, resourceGroupName: string, serviceConnectionName: string, location: string) {

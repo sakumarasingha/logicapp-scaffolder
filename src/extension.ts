@@ -46,7 +46,7 @@ export function activate(context: vscode.ExtensionContext) {
     // Prompt for DevOps Service Connection Name
     const devOpsServiceConnectionName = await vscode.window.showInputBox({
       prompt: 'Enter DevOps Service Connection Name',
-      placeHolder: 'PROD DEVOPS DEPLOYMENT',
+      placeHolder: 'DEV DEVOPS DEPLOYMENT',
       validateInput: (value) => {
         return value && value.trim() ? null : 'DevOps Service Connection  name is required';
       }
@@ -68,7 +68,6 @@ export function activate(context: vscode.ExtensionContext) {
     try {
       // Create folder structure
       createFolder(rootPath, 'src/deploy');
-      createFolder(rootPath, 'src/deploy/artifacts');
       createFolder(rootPath, 'src/deploy/env');
       createFolder(rootPath, 'workflows');
       createFolder(rootPath, 'src/logicapps');
@@ -77,9 +76,6 @@ export function activate(context: vscode.ExtensionContext) {
 
       //Create Bicep Parameter Files
       fs.writeFileSync(path.join(rootPath, 'src/deploy/env/main.dev.bicepparam'), '{}');
-      fs.writeFileSync(path.join(rootPath, 'src/deploy/env/main.sit.bicepparam'), '{}');
-      fs.writeFileSync(path.join(rootPath, 'src/deploy/env/main.uat.bicepparam'), '{}');
-      fs.writeFileSync(path.join(rootPath, 'src/deploy/env/main.prd.bicepparam'), '{}');
       // Create Bicep file
       createBicepFile(rootPath, orgName, projectName);
 
@@ -111,12 +107,12 @@ function createFolder(rootPath: string, folderPath: string) {
 function createBicepFile(rootPath: string, orgName: string, projectName: string) {
   const bicepContent = `// Logic App Standard Infrastructure
 param location string = resourceGroup().location
-var logicAppName = toLower('logic-${projectName}-prd-ae}')
-var appServicePlanName = toLower('asp-${orgName}-prd-ae-001}')
-var storageAccountName = toLower('st\${orgName}prdae001')
-var keyvaultName = toLower('kv-${orgName}-prd-ae-001')
-var omsWorkspaceName = toLower('oms-${orgName}-prd-ae-001')
-var actionGroupName = toLower('ag-${orgName}-prd-ae-001')
+var logicAppName = toLower('logic-${projectName}-dev-ae}')
+var appServicePlanName = toLower('asp-${orgName}-dev-ae-001}')
+var storageAccountName = toLower('st\${orgName}devae001')
+var keyvaultName = toLower('kv-${orgName}-dev-ae-001')
+var omsWorkspaceName = toLower('oms-${orgName}-dev-ae-001')
+var actionGroupName = toLower('ag-${orgName}-dev-ae-001')
 
 // Storage Account for Logic App
 resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' = {
@@ -230,8 +226,8 @@ output storageAccountName string = storageAccount.name
   const bicepPath = path.join(rootPath, 'src/deploy/main.bicep');
   fs.writeFileSync(bicepPath, bicepContent);
 
-  fs.writeFileSync(path.join(rootPath, 'src/deploy/integration.bicep'), '{}');
-  fs.writeFileSync(path.join(rootPath, 'src/deploy/monitoring.bicep'), '{}');
+  //fs.writeFileSync(path.join(rootPath, 'src/deploy/integration.bicep'), '{}');
+  //fs.writeFileSync(path.join(rootPath, 'src/deploy/monitoring.bicep'), '{}');
 }
 
 function createPipelineYaml(rootPath: string, resourceGroupName: string, serviceConnectionName: string, location: string) {
@@ -284,13 +280,13 @@ stages:
               PathtoPublish: '$(Build.ArtifactStagingDirectory)'
               ArtifactName: 'drop'
 
-  - stage: Deploy
-    displayName: 'Deploy Stage'
+  - stage: devDeploy
+    displayName: 'DEV Stage'
     dependsOn: Build
     jobs:
       - deployment: DeployInfrastructure
         displayName: 'Deploy Infrastructure'
-        environment: 'production'
+        environment: 'development'
         strategy:
           runOnce:
             deploy:

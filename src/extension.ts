@@ -75,7 +75,7 @@ export function activate(context: vscode.ExtensionContext) {
       createFolder(rootPath, 'src/bicep/modules');
 
       // Create Bicep Parameter Files
-      createBicepParameterFile(rootPath, orgName, projectName);
+      createBicepParameterFile(rootPath, resourceGroupName, orgName, projectName);
 
       // Create Bicep file
       createBicepFile(rootPath);
@@ -107,7 +107,7 @@ function createFolder(rootPath: string, folderPath: string) {
 
 function createBicepParameterFile(rootPath: string, resourceGroupName: string, orgName: string, projectName: string) {
   const bicepParamContent = `using '../main.bicep'
-param locationFull = 'australiaeast'
+param location = 'australiaeast'
 param environment = 'dev'
 param entity = '${orgName}'
 param projectName = '${projectName}'
@@ -148,7 +148,7 @@ param tagList object
   'australiaeast'
   'australiasoutheast'
 ])
-param locationFull string
+param location string
 
 @description('Resource Group Name')
 param rgName string
@@ -163,12 +163,12 @@ var region = {
   southeastasia: 'SEA'
 }
 
-var logicAppName = toLower('logic-\${projectName}-\${environment}-\${region[locationFull]}')
-var appServicePlanName = toLower('asp-\${entity}-\${environment}-\${region[locationFull]}-001}')
-var storageAccountName = toLower('st\${orgName}\${environment}\${region[locationFull]}001')
-var keyvaultName = toLower('kv-\${entity}-\${environment}-\${region[locationFull]}-001')
-var omsWorkspaceName = toLower('oms-\${entity}-\${environment}-\${region[locationFull]}-001')
-var actionGroupName = toLower('ag-\${entity}-\${environment}-\${region[locationFull]}-001')
+var logicAppName = toLower('logic-\${projectName}-\${environment}-\${region[location]}')
+var appServicePlanName = toLower('asp-\${entity}-\${environment}-\${region[location]}-001}')
+var storageAccountName = toLower('st\${entity}\${environment}\${region[location]}001')
+var keyvaultName = toLower('kv-\${entity}-\${environment}-\${region[location]}-001')
+var omsWorkspaceName = toLower('oms-\${entity}-\${environment}-\${region[location]}-001')
+var actionGroupName = toLower('ag-\${entity}-\${environment}-\${region[location]}-001')
 
 // --------------------------------------------------------------
 // Existing Resources
@@ -289,9 +289,6 @@ output storageAccountName string = storageAccount.name
 
   const bicepPath = path.join(rootPath, 'src/deploy/main.bicep');
   fs.writeFileSync(bicepPath, bicepContent);
-
-  //fs.writeFileSync(path.join(rootPath, 'src/deploy/integration.bicep'), '{}');
-  //fs.writeFileSync(path.join(rootPath, 'src/deploy/monitoring.bicep'), '{}');
 }
 
 function createPipelineYaml(rootPath: string, resourceGroupName: string, serviceConnectionName: string, location: string) {
@@ -463,6 +460,7 @@ function createSampleLogicApp(rootPath: string) {
   fs.writeFileSync(path.join(rootPath, 'src/logicapps/host.json'), hostContent);
   fs.writeFileSync(path.join(rootPath, 'src/logicapps/connections.json'), '{}');
   fs.writeFileSync(path.join(rootPath, 'src/logicapps/parameters.json'), '{}');
+  fs.writeFileSync(path.join(rootPath, 'src/logicapps/SampleWorkflow/Artifacts/map.liquid'), '{}');
 }
 
 function createSampleFunctionApp(rootPath: string) {

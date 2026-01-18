@@ -74,10 +74,11 @@ export function activate(context: vscode.ExtensionContext) {
       createFolder(rootPath, 'src/functionapps');
       createFolder(rootPath, 'src/bicep/modules');
 
-      //Create Bicep Parameter Files
-      fs.writeFileSync(path.join(rootPath, 'src/deploy/env/main.dev.bicepparam'), '{}');
+      // Create Bicep Parameter Files
+      createBicepParameterFile(rootPath, orgName, projectName);
+
       // Create Bicep file
-      createBicepFile(rootPath, orgName, projectName);
+      createBicepFile(rootPath);
 
       // Create Azure DevOps Pipeline YAML
       createPipelineYaml(rootPath, resourceGroupName, devOpsServiceConnectionName, 'australiaeast');
@@ -104,15 +105,66 @@ function createFolder(rootPath: string, folderPath: string) {
   }
 }
 
-function createBicepFile(rootPath: string, orgName: string, projectName: string) {
+function createBicepParameterFile(rootPath: string, orgName: string, projectName: string) {
+  const bicepParamContent = `// Logic App Standard Infrastructure
+
+`;
+
+  const bicepPath = path.join(rootPath, 'src/deploy/env/main.dev.bicepparam');
+  fs.writeFileSync(bicepPath, bicepParamContent);
+}
+
+function createBicepFile(rootPath: string) {
   const bicepContent = `// Logic App Standard Infrastructure
-param location string = resourceGroup().location
-var logicAppName = toLower('logic-${projectName}-dev-ae}')
-var appServicePlanName = toLower('asp-${orgName}-dev-ae-001}')
-var storageAccountName = toLower('st\${orgName}devae001')
-var keyvaultName = toLower('kv-${orgName}-dev-ae-001')
-var omsWorkspaceName = toLower('oms-${orgName}-dev-ae-001')
-var actionGroupName = toLower('ag-${orgName}-dev-ae-001')
+// --------------------------------------------------------------
+// Parameters
+// --------------------------------------------------------------
+@description('The type of environment being deployed')
+param environment string
+
+@description('Entity Name')
+param entity string
+
+@description('Tag list and values')
+param tagList object
+
+@description('The primary location full being deployed to.')
+@allowed([
+  'australiaeast'
+  'australiasoutheast'
+])
+param locationFull string
+
+@description('Resource Group for Core Services')
+param rgCoreService string
+
+@description('Resource Group Name')
+param rgName string
+
+// --------------------------------------------------------------
+// Variables
+// --------------------------------------------------------------
+var region = {
+  australiaeast: 'AE'
+  australiasoutheast: 'ASE'
+  eastasia: 'EA'
+  southeastasia: 'SEA'
+}
+
+var logicAppName = toLower('logic-\${projectName}-\${projectName}-\${region[locationFull]}')
+var appServicePlanName = toLower('asp-\${entity}-\${environment}-\${region[locationFull]}-001}')
+var storageAccountName = toLower('st\${orgName}\${environment}\${region[locationFull]}001')
+var keyvaultName = toLower('kv-\${entity}-\${environment}-\${region[locationFull]}-001')
+var omsWorkspaceName = toLower('oms-\${entity}-\${environment}-\${region[locationFull]}-001')
+var actionGroupName = toLower('ag-\${entity}-\${environment}-\${region[locationFull]}-001')
+
+// --------------------------------------------------------------
+// Existing Resources
+// --------------------------------------------------------------
+  //resource keyvault 'Microsoft.KeyVault/vaults@2023-02-01' existing = {
+  //  scope: resourceGroup(rgName)
+  //  name: keyvaultName
+  //}
 
 // Storage Account for Logic App
 resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' = {

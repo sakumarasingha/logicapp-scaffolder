@@ -72,7 +72,6 @@ export function activate(context: vscode.ExtensionContext) {
       createFolder(rootPath, 'workflows');
       createFolder(rootPath, 'src/logicapps');
       createFolder(rootPath, 'src/functionapps');
-      createFolder(rootPath, 'src/bicep/modules');
 
       // Create Bicep Parameter Files
       createBicepParameterFile(rootPath, resourceGroupName, orgName, projectName);
@@ -166,9 +165,6 @@ var region = {
 var logicAppName = toLower('logic-\${projectName}-\${environment}-\${region[location]}')
 var appServicePlanName = toLower('asp-\${entity}-\${environment}-\${region[location]}-001}')
 var storageAccountName = toLower('st\${entity}\${environment}\${region[location]}001')
-var keyvaultName = toLower('kv-\${entity}-\${environment}-\${region[location]}-001')
-var omsWorkspaceName = toLower('oms-\${entity}-\${environment}-\${region[location]}-001')
-var actionGroupName = toLower('ag-\${entity}-\${environment}-\${region[location]}-001')
 
 // --------------------------------------------------------------
 // Existing Resources
@@ -294,13 +290,6 @@ stages:
               Contents: '**'
               TargetFolder: '$(Build.ArtifactStagingDirectory)/logicapps'
 
-          - task: CopyFiles@2
-            displayName: 'Copy Function Apps'
-            inputs:
-              SourceFolder: 'src/functionapps'
-              Contents: '**'
-              TargetFolder: '$(Build.ArtifactStagingDirectory)/functionapps'
-
           - task: PublishBuildArtifacts@1
             displayName: 'Publish Artifacts'
             inputs:
@@ -350,12 +339,6 @@ stages:
                         --name main \\
                         --query properties.outputs.logicAppName.value -o tsv)
                       echo "##vso[task.setvariable variable=logicAppName]$logicAppName"
-                      
-                      functionAppName=$(az deployment group show \\
-                        --resource-group $(resourceGroupName) \\
-                        --name main \\
-                        --query properties.outputs.functionAppName.value -o tsv)
-                      echo "##vso[task.setvariable variable=functionAppName]$functionAppName"
 
                 - task: AzureFunctionApp@2
                   displayName: 'Deploy Logic App Workflows'
@@ -366,14 +349,6 @@ stages:
                     package: '$(System.ArtifactsDirectory)/drop/logicapps'
                     deploymentMethod: 'zipDeploy'
 
-                - task: AzureFunctionApp@2
-                  displayName: 'Deploy Function App'
-                  inputs:
-                    azureSubscription: '$(azureSubscription)'
-                    appType: 'functionApp'
-                    appName: '$(functionAppName)'
-                    package: '$(System.ArtifactsDirectory)/drop/functionapps'
-                    deploymentMethod: 'zipDeploy'
 `;
 
   const yamlPath = path.join(rootPath, 'workflows/azure-pipeline.yml');

@@ -248,40 +248,6 @@ resource logicApp 'Microsoft.Web/sites@2023-01-01' = {
   }
 }
 
-// Function App
-resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
-  name: functionAppName
-  location: location
-  kind: 'functionapp'
-  properties: {
-    serverFarmId: appServicePlan.id
-    siteConfig: {
-      appSettings: [
-        {
-          name: 'AzureWebJobsStorage'
-          value: 'DefaultEndpointsProtocol=https;AccountName=\${storageAccount.name};AccountKey=\${storageAccount.listKeys().keys[0].value};EndpointSuffix=core.windows.net'
-        }
-        {
-          name: 'WEBSITE_CONTENTAZUREFILECONNECTIONSTRING'
-          value: 'DefaultEndpointsProtocol=https;AccountName=\${storageAccount.name};AccountKey=\${storageAccount.listKeys().keys[0].value};EndpointSuffix=core.windows.net'
-        }
-        {
-          name: 'WEBSITE_CONTENTSHARE'
-          value: toLower(functionAppName)
-        }
-        {
-          name: 'FUNCTIONS_EXTENSION_VERSION'
-          value: '~4'
-        }
-        {
-          name: 'FUNCTIONS_WORKER_RUNTIME'
-          value: 'node'
-        }
-      ]
-    }
-    httpsOnly: true
-  }
-}
 
 output logicAppName string = logicApp.name
 output storageAccountName string = storageAccount.name

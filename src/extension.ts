@@ -74,7 +74,7 @@ export function activate(context: vscode.ExtensionContext) {
       createFolder(rootPath, 'src/functionapps');
 
       // Create Bicep Parameter Files
-      createBicepParameterFile(rootPath, resourceGroupName, orgName, projectName);
+      createBicepParameterFile(rootPath, orgName, projectName);
 
       // Create Bicep file
       createBicepFile(rootPath);
@@ -104,13 +104,12 @@ function createFolder(rootPath: string, folderPath: string) {
   }
 }
 
-function createBicepParameterFile(rootPath: string, resourceGroupName: string, orgName: string, projectName: string) {
+function createBicepParameterFile(rootPath: string, orgName: string, projectName: string) {
   const bicepParamContent = `using '../main.bicep'
 param location = 'australiaeast'
 param environment = 'dev'
 param entity = '${orgName}'
 param projectName = '${projectName}'
-param rgName = '${resourceGroupName}'
 param tagList = {
   'Created By': 'EmdFlow'
   Owner : '${orgName}'
@@ -149,9 +148,6 @@ param tagList object
 ])
 param location string
 
-@description('Resource Group Name')
-param rgName string
-
 // --------------------------------------------------------------
 // Variables
 // --------------------------------------------------------------
@@ -166,18 +162,12 @@ var logicAppName = toLower('logic-\${projectName}-\${environment}-\${region[loca
 var appServicePlanName = toLower('asp-\${entity}-\${environment}-\${region[location]}-001}')
 var storageAccountName = toLower('st\${entity}\${environment}\${region[location]}001')
 
-// --------------------------------------------------------------
-// Existing Resources
-// --------------------------------------------------------------
-  //resource keyvault 'Microsoft.KeyVault/vaults@2023-02-01' existing = {
-  //  scope: resourceGroup(rgName)
-  //  name: keyvaultName
-  //}
 
 // Storage Account for Logic App
 resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' = {
   name: storageAccountName
   location: location
+  tags: tagList
   sku: {
     name: 'Standard_LRS'
   }
@@ -192,6 +182,7 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' = {
 resource appServicePlan 'Microsoft.Web/serverfarms@2023-01-01' = {
   name: appServicePlanName
   location: location
+  tags: tagList
   sku: {
     name: 'WS1'
     tier: 'WorkflowStandard'
@@ -203,6 +194,7 @@ resource appServicePlan 'Microsoft.Web/serverfarms@2023-01-01' = {
 resource logicApp 'Microsoft.Web/sites@2023-01-01' = {
   name: logicAppName
   location: location
+  tags: tagList
   kind: 'functionapp,workflowapp'
   properties: {
     serverFarmId: appServicePlan.id

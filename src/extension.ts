@@ -17,23 +17,36 @@ export function activate(context: vscode.ExtensionContext) {
       return;
     }
 
-    // Prompt for Key Vault name
-    const kvName = await vscode.window.showInputBox({
-      prompt: 'Enter Key Vault Name',
-      placeHolder: 'kv-emd-ae-prd',
+    // Prompt Project name
+    const projectName = await vscode.window.showInputBox({
+      prompt: 'Enter Project Name',
+      placeHolder: 'order-processing',
       validateInput: (value) => {
-        return value && value.trim() ? null : 'Key Vault name is required';
+        return value && value.trim() ? null : 'Project name is required';
       }
     });
 
-    if (!kvName) {
+    if (!projectName) {
+      return;
+    }
+
+    // Prompt Project name
+    const orgName = await vscode.window.showInputBox({
+      prompt: 'Enter Org Name (3 Letter)',
+      placeHolder: 'emd',
+      validateInput: (value) => {
+        return value && value.trim() ? null : 'Organization name is required';
+      }
+    });
+
+    if (!orgName) {
       return;
     }
 
     // Prompt for DevOps Service Connection Name
     const devOpsServiceConnectionName = await vscode.window.showInputBox({
       prompt: 'Enter DevOps Service Connection Name',
-      placeHolder: 'PROD DEVOPS DEPLOYMENT',
+      placeHolder: 'DEV DEVOPS DEPLOYMENT',
       validateInput: (value) => {
         return value && value.trim() ? null : 'DevOps Service Connection  name is required';
       }
@@ -55,19 +68,16 @@ export function activate(context: vscode.ExtensionContext) {
     try {
       // Create folder structure
       createFolder(rootPath, 'src/deploy');
-      createFolder(rootPath, 'src/deploy/artifacts');
       createFolder(rootPath, 'src/deploy/env');
       createFolder(rootPath, 'workflows');
       createFolder(rootPath, 'src/logicapps');
       createFolder(rootPath, 'src/functionapps');
 
-      //Create Bicep Parameter Files
-      fs.writeFileSync(path.join(rootPath, 'src/deploy/env/main.dev.bicepparam'), '{}');
-      fs.writeFileSync(path.join(rootPath, 'src/deploy/env/main.sit.bicepparam'), '{}');
-      fs.writeFileSync(path.join(rootPath, 'src/deploy/env/main.uat.bicepparam'), '{}');
-      fs.writeFileSync(path.join(rootPath, 'src/deploy/env/main.prd.bicepparam'), '{}');
+      // Create Bicep Parameter Files
+      createBicepParameterFile(rootPath, orgName, projectName);
+
       // Create Bicep file
-      createBicepFile(rootPath, resourceGroupName);
+      createBicepFile(rootPath);
 
       // Create Azure DevOps Pipeline YAML
       createPipelineYaml(rootPath, resourceGroupName, devOpsServiceConnectionName, 'australiaeast');
@@ -94,18 +104,70 @@ function createFolder(rootPath: string, folderPath: string) {
   }
 }
 
-function createBicepFile(rootPath: string, resourceGroupName: string) {
+function createBicepParameterFile(rootPath: string, orgName: string, projectName: string) {
+  const bicepParamContent = `using '../main.bicep'
+param location = 'australiaeast'
+param environment = 'dev'
+param entity = '${orgName}'
+param projectName = '${projectName}'
+param tagList = {
+  'Created By': 'EmdFlow'
+  Owner : '${orgName}'
+  Department : 'Integration'
+  Environment : 'DEV'
+  Vendor : 'Microsoft'
+  Version : '1.0.0'
+}
+`;
+
+  const bicepPath = path.join(rootPath, 'src/deploy/env/main.dev.bicepparam');
+  fs.writeFileSync(bicepPath, bicepParamContent);
+}
+
+function createBicepFile(rootPath: string) {
   const bicepContent = `// Logic App Standard Infrastructure
-param location string = resourceGroup().location
-param logicAppName string = 'logic-app-\${uniqueString(resourceGroup().id)}'
-param appServicePlanName string = 'asp-\${logicAppName}'
-param storageAccountName string = 'st\${uniqueString(resourceGroup().id)}'
-param functionAppName string = 'func-\${uniqueString(resourceGroup().id)}'
+// --------------------------------------------------------------
+// Parameters
+// --------------------------------------------------------------
+@description('The type of environment being deployed')
+param environment string
+
+@description('Entity Name')
+param entity string
+
+@description('Project Name')
+param projectName string
+
+@description('Tag list and values')
+param tagList object
+
+@description('The primary location full being deployed to.')
+@allowed([
+  'australiaeast'
+  'australiasoutheast'
+])
+param location string
+
+// --------------------------------------------------------------
+// Variables
+// --------------------------------------------------------------
+var region = {
+  australiaeast: 'AE'
+  australiasoutheast: 'ASE'
+  eastasia: 'EA'
+  southeastasia: 'SEA'
+}
+
+var logicAppName = toLower('logic-\${projectName}-\${environment}-\${region[location]}')
+var appServicePlanName = toLower('asp-\${entity}-\${environment}-\${region[location]}-001')
+var storageAccountName = toLower('st\${entity}\${environment}\${region[location]}001')
+
 
 // Storage Account for Logic App
 resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' = {
   name: storageAccountName
   location: location
+  tags: tagList
   sku: {
     name: 'Standard_LRS'
   }
@@ -120,6 +182,7 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' = {
 resource appServicePlan 'Microsoft.Web/serverfarms@2023-01-01' = {
   name: appServicePlanName
   location: location
+  tags: tagList
   sku: {
     name: 'WS1'
     tier: 'WorkflowStandard'
@@ -131,6 +194,7 @@ resource appServicePlan 'Microsoft.Web/serverfarms@2023-01-01' = {
 resource logicApp 'Microsoft.Web/sites@2023-01-01' = {
   name: logicAppName
   location: location
+  tags: tagList
   kind: 'functionapp,workflowapp'
   properties: {
     serverFarmId: appServicePlan.id
@@ -172,43 +236,8 @@ resource logicApp 'Microsoft.Web/sites@2023-01-01' = {
   }
 }
 
-// Function App
-resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
-  name: functionAppName
-  location: location
-  kind: 'functionapp'
-  properties: {
-    serverFarmId: appServicePlan.id
-    siteConfig: {
-      appSettings: [
-        {
-          name: 'AzureWebJobsStorage'
-          value: 'DefaultEndpointsProtocol=https;AccountName=\${storageAccount.name};AccountKey=\${storageAccount.listKeys().keys[0].value};EndpointSuffix=core.windows.net'
-        }
-        {
-          name: 'WEBSITE_CONTENTAZUREFILECONNECTIONSTRING'
-          value: 'DefaultEndpointsProtocol=https;AccountName=\${storageAccount.name};AccountKey=\${storageAccount.listKeys().keys[0].value};EndpointSuffix=core.windows.net'
-        }
-        {
-          name: 'WEBSITE_CONTENTSHARE'
-          value: toLower(functionAppName)
-        }
-        {
-          name: 'FUNCTIONS_EXTENSION_VERSION'
-          value: '~4'
-        }
-        {
-          name: 'FUNCTIONS_WORKER_RUNTIME'
-          value: 'node'
-        }
-      ]
-    }
-    httpsOnly: true
-  }
-}
 
 output logicAppName string = logicApp.name
-output functionAppName string = functionApp.name
 output storageAccountName string = storageAccount.name
 `;
 
@@ -243,7 +272,7 @@ stages:
             displayName: 'Copy Bicep Files'
             inputs:
               SourceFolder: 'src/deploy'
-              Contents: '**/*.bicep'
+              Contents: '**/*.*'
               TargetFolder: '$(Build.ArtifactStagingDirectory)/bicep'
 
           - task: CopyFiles@2
@@ -253,26 +282,19 @@ stages:
               Contents: '**'
               TargetFolder: '$(Build.ArtifactStagingDirectory)/logicapps'
 
-          - task: CopyFiles@2
-            displayName: 'Copy Function Apps'
-            inputs:
-              SourceFolder: 'src/functionapps'
-              Contents: '**'
-              TargetFolder: '$(Build.ArtifactStagingDirectory)/functionapps'
-
           - task: PublishBuildArtifacts@1
             displayName: 'Publish Artifacts'
             inputs:
               PathtoPublish: '$(Build.ArtifactStagingDirectory)'
               ArtifactName: 'drop'
 
-  - stage: Deploy
-    displayName: 'Deploy Stage'
+  - stage: devDeploy
+    displayName: 'DEV Stage'
     dependsOn: Build
     jobs:
       - deployment: DeployInfrastructure
         displayName: 'Deploy Infrastructure'
-        environment: 'production'
+        environment: 'development'
         strategy:
           runOnce:
             deploy:
@@ -295,7 +317,7 @@ stages:
                       az deployment group create \\
                         --resource-group $(resourceGroupName) \\
                         --template-file $(System.ArtifactsDirectory)/drop/bicep/main.bicep \\
-                        --parameters location=$(location)
+                        --parameters $(System.ArtifactsDirectory)/drop/bicep/env/main.dev.bicepparam  
 
                 - task: AzureCLI@2
                   displayName: 'Get Logic App Name'
@@ -309,12 +331,6 @@ stages:
                         --name main \\
                         --query properties.outputs.logicAppName.value -o tsv)
                       echo "##vso[task.setvariable variable=logicAppName]$logicAppName"
-                      
-                      functionAppName=$(az deployment group show \\
-                        --resource-group $(resourceGroupName) \\
-                        --name main \\
-                        --query properties.outputs.functionAppName.value -o tsv)
-                      echo "##vso[task.setvariable variable=functionAppName]$functionAppName"
 
                 - task: AzureFunctionApp@2
                   displayName: 'Deploy Logic App Workflows'
@@ -325,14 +341,6 @@ stages:
                     package: '$(System.ArtifactsDirectory)/drop/logicapps'
                     deploymentMethod: 'zipDeploy'
 
-                - task: AzureFunctionApp@2
-                  displayName: 'Deploy Function App'
-                  inputs:
-                    azureSubscription: '$(azureSubscription)'
-                    appType: 'functionApp'
-                    appName: '$(functionAppName)'
-                    package: '$(System.ArtifactsDirectory)/drop/functionapps'
-                    deploymentMethod: 'zipDeploy'
 `;
 
   const yamlPath = path.join(rootPath, 'workflows/azure-pipeline.yml');
@@ -385,6 +393,7 @@ function createSampleLogicApp(rootPath: string) {
   fs.writeFileSync(path.join(rootPath, 'src/logicapps/host.json'), hostContent);
   fs.writeFileSync(path.join(rootPath, 'src/logicapps/connections.json'), '{}');
   fs.writeFileSync(path.join(rootPath, 'src/logicapps/parameters.json'), '{}');
+  fs.writeFileSync(path.join(rootPath, 'src/logicapps/SampleWorkflow/Artifacts/map.liquid'), '{}');
 }
 
 function createSampleFunctionApp(rootPath: string) {

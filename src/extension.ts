@@ -159,7 +159,7 @@ var region = {
 }
 
 var logicAppName = toLower('logic-\${projectName}-\${environment}-\${region[location]}')
-var appServicePlanName = toLower('asp-\${entity}-\${environment}-\${region[location]}-001}')
+var appServicePlanName = toLower('asp-\${entity}-\${environment}-\${region[location]}-001')
 var storageAccountName = toLower('st\${entity}\${environment}\${region[location]}001')
 
 
@@ -272,7 +272,7 @@ stages:
             displayName: 'Copy Bicep Files'
             inputs:
               SourceFolder: 'src/deploy'
-              Contents: '**/*.bicep'
+              Contents: '**/*.*'
               TargetFolder: '$(Build.ArtifactStagingDirectory)/bicep'
 
           - task: CopyFiles@2
@@ -317,7 +317,7 @@ stages:
                       az deployment group create \\
                         --resource-group $(resourceGroupName) \\
                         --template-file $(System.ArtifactsDirectory)/drop/bicep/main.bicep \\
-                        --parameters location=$(location)
+                        --parameters $(System.ArtifactsDirectory)/drop/bicep/env/main.dev.bicepparam  
 
                 - task: AzureCLI@2
                   displayName: 'Get Logic App Name'
